@@ -1,0 +1,41 @@
+{
+  "success": true,
+  "username": "octocat",
+  "gists": [
+    {
+      "id": "12345",
+      "description": "Example gist",
+      "url": "https://gist.github.com/12345",
+      "files": ["example.py"],
+      "file_details": {
+        "example.py": {
+          "filename": "example.py",
+          "raw_url": "https://raw.github.com/...",
+          "size": 1024,
+          "language": "Python"
+        }
+      },
+      "created_at": "2024-01-01T00:00:00",
+      "updated_at": "2024-01-02T00:00:00",
+      "comments": 0
+    }
+  ],
+  "count": 1,
+  "pagination": {
+    "next": "https://api.github.com/gists?page=2",
+    "prev": null,
+    "first": null,
+    "last": null
+  },
+  "rate_limit": {
+    "limit": 5000,
+    "remaining": 4999,
+    "resets_at": 1704153600
+  },
+  "cache_info": {
+    "used_cache": false,
+    "cache_key": "octocat:1:30",
+    "ttl_seconds": 300
+  },
+  "timestamp": "2024-01-01T12:00:00"
+}
