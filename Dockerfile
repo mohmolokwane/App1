@@ -2,11 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir fastapi uvicorn httpx
+# Install system dependencies (curl for healthcheck)
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy application
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --compile -r requirements.txt
+
+# Copy application code
 COPY app.py .
 
 # Create non-root user
@@ -15,7 +18,9 @@ USER appuser
 
 EXPOSE 8080
 
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Production server
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2"]
