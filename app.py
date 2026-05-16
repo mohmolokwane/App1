@@ -6,13 +6,14 @@ from typing import List, Dict, Optional, Any
 from enum import Enum
 from dataclasses import dataclass, asdict
 from functools import wraps
+import re
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, Path
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 # Configure logging
@@ -132,6 +133,12 @@ app.add_middleware(
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(","))
 
+def validate_github_username(username: str) -> bool:
+    """Validate GitHub username format"""
+    # GitHub username rules: alphanumeric and hyphens, max 39 chars, can't start/end with hyphen
+    pattern = r'^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$'
+    return bool(re.match(pattern, username))
+
 @retry(
     stop=stop_after_attempt(MAX_RETRIES),
     wait=wait_exponential(multiplier=1, min=1, max=10),
@@ -216,13 +223,44 @@ def handle_github_error(response: httpx.Response) -> HTTPException:
             detail=f"GitHub API error: {response.status_code}"
         )
 
-@app.get("/{username}", response_model=ApiResponse)
+@app.get("/")
+async def root():
+    """Root endpoint with API information"""
+    return {
+        "message": "GitHub Gist API",
+        "version": "2.0.0",
+        "endpoints": {
+            "/{username}": "Get user's public gists",
+            "/health": "Health check",
+            "/cache/clear": "Clear cache (admin)"
+        },
+        "documentation": "/docs",
+        "example": "/octocat?page=1&per_page=30"
+    }
+
+@app.get("/health")
+async def health_check():
+    """Enhanced health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "cache_size": len(cache.cache),
+        "github_configured": bool(GITHUB_TOKEN),
+        "version": "2.0.0"
+    }
+
+@app.get("/cache/clear")
+async def clear_cache():
+    """Admin endpoint to clear cache"""
+    cache.clear()
+    return {"message": "Cache cleared successfully"}
+
+@app.get("/{username}")
 async def get_user_gists(
-    username: str,
+    username: str = Path(..., description="GitHub username (e.g., octocat)"),
     page: int = 1,
     per_page: int = DEFAULT_PAGE_SIZE,
-    use_cache: bool = True,
-    request: Request = None
+    use_cache: bool = True
 ) -> JSONResponse:
     """
     Get all public gists for a GitHub user with pagination support
@@ -232,6 +270,13 @@ async def get_user_gists(
     - **per_page**: Items per page (default: 30, max: 100)
     - **use_cache**: Whether to use cached response (default: true)
     """
+    
+    # Validate username format
+    if not validate_github_username(username):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid GitHub username format: '{username}'. Usernames can only contain alphanumeric characters and hyphens, and cannot start or end with a hyphen."
+        )
     
     # Validate pagination parameters
     if per_page < 1 or per_page > MAX_PAGE_SIZE:
@@ -318,26 +363,11 @@ async def get_user_gists(
     except httpx.NetworkError as e:
         logger.error(f"Network error: {str(e)}")
         raise HTTPException(status_code=503, detail=f"Network error: {str(e)}")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error")
-
-@app.get("/health")
-async def health_check():
-    """Enhanced health check endpoint"""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "cache_size": len(cache.cache),
-        "github_configured": bool(GITHUB_TOKEN),
-        "version": "2.0.0"
-    }
-
-@app.get("/cache/clear")
-async def clear_cache():
-    """Admin endpoint to clear cache"""
-    cache.clear()
-    return {"message": "Cache cleared successfully"}
 
 @app.on_event("startup")
 async def startup_event():
@@ -345,3 +375,5 @@ async def startup_event():
     logger.info(f"Configuration: CACHE_TTL={CACHE_TTL_SECONDS}s, MAX_PAGE_SIZE={MAX_PAGE_SIZE}, TIMEOUT={REQUEST_TIMEOUT}s")
     if GITHUB_TOKEN:
         logger.info("GitHub token configured - higher rate limits available")
+    else:
+        logger.warning("No GitHub token configured - rate limits will be restricted to 60 requests/hour")
