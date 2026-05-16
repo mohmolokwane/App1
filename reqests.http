@@ -1,3 +1,9 @@
+NB if you gonna test using the browser just copy the links
+
+
+# View API documentation (in browser)
+open http://localhost:8080/docs
+
 curl http://localhost:8080/
 
 # Health check
@@ -5,9 +11,6 @@ curl http://localhost:8080/health
 
 # Get octocat's gists (8 gists)
 curl http://localhost:8080/octocat
-
-# Get with pagination
-curl "http://localhost:8080/octocat?page=1&per_page=3"
 
 # Get with pagination
 curl "http://localhost:8080/octocat?page=1&per_page=3"
@@ -21,5 +24,3 @@ curl http://localhost:8080/invalid-user-!!!
 # Clear cache
 curl http://localhost:8080/cache/clear
 
-# View API documentation (in browser)
-open http://localhost:8080/docs

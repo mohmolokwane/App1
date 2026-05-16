@@ -63,7 +63,7 @@ cd github-gist-api
 
 # 2. Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate 
 
 # 3. Upgrade pip
 pip install --upgrade pip
@@ -77,7 +77,7 @@ export CACHE_TTL_SECONDS=300  # Optional: cache duration in seconds
 export DEFAULT_PAGE_SIZE=30  # Optional: default items per page
 
 # 6. Run the server
-uvicorn app:app --reload --port 8080
+uvicorn app:app --reload --port 8080  or python -m uvicorn app:app --reload --port 8080
 
 # 7. Run requests.http for testing
 - Open another terminal and run the requests saved in requests.http file 
@@ -94,8 +94,6 @@ sudo kill -9 <PID>
 # Or use a different port for Docker
 docker run -d -p 8081:8080 --name gist-api github-gist-api
 
-# Stop uvicorn if running
-pkill -f uvicorn
 
 # Build the image
 docker build -t github-gist-api .
