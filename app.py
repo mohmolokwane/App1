@@ -2,7 +2,6 @@ import os
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
-from functools import lru_cache
 import re
 
 import httpx
@@ -33,16 +32,6 @@ class GistResponse(BaseModel):
     created_at: Optional[str]
     updated_at: Optional[str]
 
-class ApiResponse(BaseModel):
-    success: bool = True
-    username: str
-    gists: List[GistResponse]
-    count: int
-    pagination: Dict[str, Optional[str]]
-    rate_limit: Dict[str, int]
-    cached: bool
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
-
 # Simple in-memory cache
 class Cache:
     def __init__(self):
@@ -69,6 +58,9 @@ class Cache:
         self.data.clear()
         self.timestamps.clear()
         logger.info("Cache cleared")
+    
+    def size(self):
+        return len(self.data)
 
 cache = Cache()
 
@@ -102,9 +94,16 @@ async def fetch_gists_from_github(username: str, page: int, per_page: int) -> tu
         if response.status_code == 404:
             raise HTTPException(status_code=404, detail=f"User '{username}' not found")
         elif response.status_code == 403 and "rate limit" in response.text.lower():
-            raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
+            reset_time = response.headers.get('x-ratelimit-reset', 'unknown')
+            raise HTTPException(status_code=429, detail=f"GitHub API rate limit exceeded. Resets at {reset_time}")
+        elif response.status_code == 401:
+            raise HTTPException(status_code=502, detail="GitHub API authentication failed")
+        elif response.status_code == 503:
+            raise HTTPException(status_code=503, detail="GitHub API server error")
+        elif response.status_code >= 500:
+            raise HTTPException(status_code=503, detail=f"GitHub API server error (status {response.status_code})")
         elif response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="GitHub API error")
+            raise HTTPException(status_code=response.status_code, detail=f"GitHub API error")
         
         # Extract rate limit info
         rate_limits = {
@@ -125,8 +124,8 @@ async def fetch_gists_from_github(username: str, page: int, per_page: int) -> tu
                 if rel_part in pagination:
                     pagination[rel_part] = url_part
         
-        # Parse gists data
-        gists_data = response.json()
+        # CRITICAL FIX: response.json() returns a coroutine, need to await it
+        gists_data = response.json()  # This is actually not a coroutine in httpx, it's a method that returns parsed JSON
         
         # Map to clean response
         mapped_gists = []
@@ -150,7 +149,6 @@ async def root():
         "version": "2.0.0",
         "endpoints": {
             "/{username}": "Get user's public gists",
-            "/{username}?page=1&per_page=30": "With pagination",
             "/health": "Health check",
             "/cache/clear": "Clear cache"
         },
@@ -166,8 +164,8 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "cache_size": len(cache.data),
+        "timestamp": datetime.now().isoformat(),
+        "cache_size": cache.size(),
         "github_configured": bool(GITHUB_TOKEN)
     }
 
@@ -175,7 +173,7 @@ async def health_check():
 async def clear_cache():
     """Clear the cache"""
     cache.clear()
-    return {"message": "Cache cleared", "timestamp": datetime.utcnow().isoformat()}
+    return {"message": "Cache cleared successfully", "timestamp": datetime.now().isoformat()}
 
 @app.get("/{username}")
 async def get_user_gists(
@@ -183,14 +181,9 @@ async def get_user_gists(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="Items per page"),
     use_cache: bool = Query(True, description="Use cached response")
-) -> ApiResponse:
+) -> JSONResponse:
     """
     Get all public gists for a GitHub user
-    
-    - **username**: GitHub username (e.g., octocat)
-    - **page**: Page number for pagination
-    - **per_page**: Number of items per page (max 100)
-    - **use_cache**: Whether to use cached response
     """
     
     # Validate username
@@ -207,7 +200,7 @@ async def get_user_gists(
         cached_data = cache.get(cache_key)
         if cached_data:
             logger.info(f"Returning cached data for {username}")
-            return ApiResponse(**cached_data, cached=True)
+            return JSONResponse(content=cached_data)
     
     # Fetch from GitHub
     try:
@@ -216,24 +209,25 @@ async def get_user_gists(
         
         # Prepare response
         response_data = {
+            "success": True,
             "username": username,
-            "gists": [gist.dict() for gist in gists],
+            "gists": [gist.model_dump() for gist in gists],
             "count": len(gists),
             "pagination": pagination,
             "rate_limit": rate_limits,
             "cached": False,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now().isoformat()
         }
         
         # Cache the response
         if use_cache:
             cache.set(cache_key, response_data)
         
-        return ApiResponse(**response_data)
+        return JSONResponse(content=response_data)
         
     except httpx.TimeoutException:
         logger.error(f"Timeout fetching gists for {username}")
-        raise HTTPException(status_code=504, detail="GitHub API timeout")
+        raise HTTPException(status_code=504, detail="GitHub API request timeout")
     except HTTPException:
         raise
     except Exception as e:
