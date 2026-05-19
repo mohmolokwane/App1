@@ -51,7 +51,6 @@ App1
 - .env.example # Example environment variables
 - stop_services.sh # Helper script to stop services
 
-
 ## Installation
 
 ### Local Development Setup

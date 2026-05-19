@@ -1,8 +1,9 @@
 NB if you gonna test using the browser just copy the links
 
 
-# View API documentation (in browser)
-open http://localhost:8080/docs
+# View API documentation (in Terminal or browser)
+
+crl http://localhost:8080/docs
 
 curl http://localhost:8080/
 
