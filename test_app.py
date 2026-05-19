@@ -52,7 +52,6 @@ class TestHealthCheck:
         assert data["status"] == "healthy"
         assert "cache_size" in data
         assert "github_configured" in data
-        # Remove version check since it's not in the health endpoint
 
 class TestGistAPI:
     """Main API endpoint tests"""
@@ -104,7 +103,6 @@ class TestGistAPI:
         
         response = client.get("/nonexistentuser123456?use_cache=false")
         assert response.status_code == 404
-        # Fix: Match exact error message format
         assert "User 'nonexistentuser123456' not found" in response.json()["detail"]
     
     @patch('app.httpx.AsyncClient')
@@ -135,7 +133,7 @@ class TestGistAPI:
         
         response = client.get("/octocat?use_cache=false")
         assert response.status_code == 503
-        # Fix: Match actual error message
+        # Match actual error message from app.py
         assert "GitHub API server error" in response.json()["detail"]
     
     @patch('app.httpx.AsyncClient')
@@ -152,9 +150,9 @@ class TestGistAPI:
     
     def test_pagination_parameters(self):
         """Test pagination parameter validation"""
-        # FastAPI returns 422 for validation errors, not 400
+        # FastAPI returns 422 for validation errors
         response = client.get("/octocat?per_page=200")
-        assert response.status_code == 422  # Changed from 400 to 422
+        assert response.status_code == 422
         
         response = client.get("/octocat?per_page=0")
         assert response.status_code == 422
@@ -190,7 +188,7 @@ class TestGistAPI:
         # Second request - should be cached
         response2 = client.get("/octocat?use_cache=true")
         assert response2.status_code == 200
-        assert response2.json()["cached"] == True  # This should now be True
+        assert response2.json()["cached"] == True
     
     def test_invalid_username_format(self):
         """Test validation of invalid username formats"""
@@ -299,9 +297,9 @@ class TestSecurityHeaders:
         assert response.status_code == 405
     
     def test_options_request(self):
-        """Test OPTIONS request - FastAPI doesn't handle OPTIONS by default"""
+        """Test OPTIONS request"""
         response = client.options("/octocat")
-        # FastAPI returns 405 for OPTIONS if not explicitly handled
+        # OPTIONS may return 200 or 405 depending on CORS setup
         assert response.status_code in [200, 405]
 
 # Run tests if file is executed directly
