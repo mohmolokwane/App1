@@ -37,10 +37,9 @@ class TestHealthCheck:
 class TestGistAPI:
     @patch('app.httpx.AsyncClient')
     def test_successful_gist_fetch(self, mock_client):
-        # Create a real response object
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.json = lambda: MOCK_GIST_RESPONSE  # Use lambda instead of return_value
+        mock_response.json = lambda: MOCK_GIST_RESPONSE
         mock_response.headers = {
             'x-ratelimit-limit': '5000',
             'x-ratelimit-remaining': '4999',
@@ -52,11 +51,6 @@ class TestGistAPI:
         mock_client.return_value.__aenter__.return_value = mock_async_client
         
         response = client.get("/octocat?use_cache=false")
-        
-        # Debug output
-        if response.status_code != 200:
-            print(f"Response status: {response.status_code}")
-            print(f"Response body: {response.text}")
         
         assert response.status_code == 200
         data = response.json()
@@ -118,6 +112,11 @@ class TestGistAPI:
     
     @patch('app.httpx.AsyncClient')
     def test_caching_mechanism(self, mock_client):
+        """Test that caching works correctly"""
+        # Clear cache before test
+        client.get("/cache/clear")
+        
+        # Setup mock response
         mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_response.json = lambda: MOCK_GIST_RESPONSE
@@ -131,26 +130,41 @@ class TestGistAPI:
         mock_async_client.get.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = mock_async_client
         
-        client.get("/cache/clear")
-        
+        # First request - should call API and not be cached
         response1 = client.get("/octocat?use_cache=true")
         assert response1.status_code == 200
-        assert response1.json()["cached"] == False
+        data1 = response1.json()
+        assert data1["cached"] == False
         
+        # Second request - should use cache
         response2 = client.get("/octocat?use_cache=true")
         assert response2.status_code == 200
-        assert response2.json()["cached"] == True
+        data2 = response2.json()
+        
+        # The second response should come from cache
+        assert data2["cached"] == True
     
     def test_invalid_username_format(self):
         response = client.get("/invalid@username")
         assert response.status_code == 400
     
     def test_real_octocat_gists(self):
+        """Test real GitHub API with octocat (integration test)"""
+        # Clear cache to ensure fresh fetch
+        client.get("/cache/clear")
+        
         response = client.get("/octocat")
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == "octocat"
         assert "gists" in data
+        assert data["cached"] == False
+        
+        # Second request should be cached
+        response2 = client.get("/octocat")
+        assert response2.status_code == 200
+        data2 = response2.json()
+        assert data2["cached"] == True  # This should be True for cached response
 
 class TestCacheManagement:
     def test_clear_cache(self):

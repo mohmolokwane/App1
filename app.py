@@ -29,7 +29,7 @@ class GistResponse(BaseModel):
     url: str
     files: List[str]
     created_at: Optional[str]
-    updated_at: Optional[str)
+    updated_at: Optional[str]
 
 class Cache:
     def __init__(self):
@@ -39,19 +39,25 @@ class Cache:
     def get(self, key: str) -> Optional[Any]:
         if key in self.data:
             if datetime.now() - self.timestamps[key] < timedelta(seconds=CACHE_TTL_SECONDS):
+                logger.info(f"Cache HIT for key: {key}")
                 return self.data[key]
             else:
+                logger.info(f"Cache EXPIRED for key: {key}")
                 del self.data[key]
                 del self.timestamps[key]
+        else:
+            logger.info(f"Cache MISS for key: {key}")
         return None
     
     def set(self, key: str, value: Any):
         self.data[key] = value
         self.timestamps[key] = datetime.now()
+        logger.info(f"Cache SET for key: {key}")
     
     def clear(self):
         self.data.clear()
         self.timestamps.clear()
+        logger.info("Cache cleared")
     
     def size(self):
         return len(self.data)
@@ -152,11 +158,16 @@ async def get_user_gists(
         raise HTTPException(status_code=400, detail=f"Invalid GitHub username format: '{username}'")
     
     cache_key = f"{username}:{page}:{per_page}"
+    
+    # Check cache
     if use_cache:
         cached_data = cache.get(cache_key)
         if cached_data:
+            # Return cached response with cached=True
+            cached_data["cached"] = True
             return JSONResponse(content=cached_data)
     
+    # Fetch from GitHub
     try:
         gists, pagination, rate_limits = await fetch_gists_from_github(username, page, per_page)
         
@@ -171,8 +182,9 @@ async def get_user_gists(
             "timestamp": datetime.now().isoformat()
         }
         
+        # Store in cache
         if use_cache:
-            cache.set(cache_key, response_data)
+            cache.set(cache_key, response_data.copy())
         
         return JSONResponse(content=response_data)
         
