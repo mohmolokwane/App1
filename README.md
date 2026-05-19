@@ -13,9 +13,9 @@ REST API that fetches public gists from GitHub users with comprehensive error ha
 7. [Docker Deployment](#docker-deployment)
 8. [Manual Testing](#manual-testing)
 9. [Environment Variables](#environment-variables)
-10.[Performance Benchmarks](#performance-benchmarks)
-11.[Security Features](#security-features)
-12.[Quick Reference](#quick-reference)
+10. [Performance Benchmarks](#performance-benchmarks)
+11. [Security Features](#security-features)
+12. [Quick Reference](#quick-reference)
 
 
 ## Features
