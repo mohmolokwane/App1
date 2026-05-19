@@ -7,7 +7,7 @@ import re
 import httpx
 from fastapi import FastAPI, HTTPException, Path, Query
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 # Configure logging
 logging.basicConfig(
@@ -17,22 +17,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Optional: for higher rate limits
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "300"))
 MAX_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", "100"))
 DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", "30"))
 REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "10.0"))
 
-# Pydantic models for response structure
 class GistResponse(BaseModel):
     id: str
     description: Optional[str]
     url: str
     files: List[str]
     created_at: Optional[str]
-    updated_at: Optional[str]
+    updated_at: Optional[str)
 
-# Simple in-memory cache
 class Cache:
     def __init__(self):
         self.data = {}
@@ -41,10 +39,8 @@ class Cache:
     def get(self, key: str) -> Optional[Any]:
         if key in self.data:
             if datetime.now() - self.timestamps[key] < timedelta(seconds=CACHE_TTL_SECONDS):
-                logger.debug(f"Cache hit: {key}")
                 return self.data[key]
             else:
-                logger.debug(f"Cache expired: {key}")
                 del self.data[key]
                 del self.timestamps[key]
         return None
@@ -52,37 +48,25 @@ class Cache:
     def set(self, key: str, value: Any):
         self.data[key] = value
         self.timestamps[key] = datetime.now()
-        logger.debug(f"Cache set: {key}")
     
     def clear(self):
         self.data.clear()
         self.timestamps.clear()
-        logger.info("Cache cleared")
     
     def size(self):
         return len(self.data)
 
 cache = Cache()
-
-app = FastAPI(
-    title="GitHub Gist API",
-    description="API to fetch GitHub user's public gists",
-    version="2.0.0"
-)
+app = FastAPI(title="GitHub Gist API", version="2.0.0")
 
 def validate_github_username(username: str) -> bool:
-    """Validate GitHub username format"""
     pattern = r'^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$'
     return bool(re.match(pattern, username))
 
-async def fetch_gists_from_github(username: str, page: int, per_page: int) -> tuple:
-    """Fetch gists from GitHub API"""
+async def fetch_gists_from_github(username: str, page: int, per_page: int):
     url = f"https://api.github.com/users/{username}/gists"
     params = {"page": page, "per_page": per_page}
-    headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "GitHub-Gist-API"
-    }
+    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "GitHub-Gist-API"}
     
     if GITHUB_TOKEN:
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
@@ -90,32 +74,23 @@ async def fetch_gists_from_github(username: str, page: int, per_page: int) -> tu
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
         response = await client.get(url, params=params, headers=headers)
         
-        # Handle GitHub API errors
         if response.status_code == 404:
             raise HTTPException(status_code=404, detail=f"User '{username}' not found")
         elif response.status_code == 403 and "rate limit" in response.text.lower():
-            reset_time = response.headers.get('x-ratelimit-reset', 'unknown')
-            raise HTTPException(status_code=429, detail=f"GitHub API rate limit exceeded. Resets at {reset_time}")
-        elif response.status_code == 401:
-            raise HTTPException(status_code=502, detail="GitHub API authentication failed")
+            raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
         elif response.status_code == 503:
             raise HTTPException(status_code=503, detail="GitHub API server error")
-        elif response.status_code >= 500:
-            raise HTTPException(status_code=503, detail=f"GitHub API server error (status {response.status_code})")
         elif response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=f"GitHub API error")
+            raise HTTPException(status_code=response.status_code, detail="GitHub API error")
         
-        # Extract rate limit info
         rate_limits = {
             "limit": int(response.headers.get('x-ratelimit-limit', 0)),
             "remaining": int(response.headers.get('x-ratelimit-remaining', 0)),
             "reset": int(response.headers.get('x-ratelimit-reset', 0))
         }
         
-        # Parse pagination links
         pagination = {"next": None, "prev": None, "first": None, "last": None}
         link_header = response.headers.get('link', '')
-        
         for link in link_header.split(','):
             part = link.strip().split(';')
             if len(part) == 2:
@@ -124,10 +99,9 @@ async def fetch_gists_from_github(username: str, page: int, per_page: int) -> tu
                 if rel_part in pagination:
                     pagination[rel_part] = url_part
         
-        # CRITICAL FIX: response.json() returns a coroutine, need to await it
-        gists_data = response.json()  # This is actually not a coroutine in httpx, it's a method that returns parsed JSON
+        # Parse JSON response
+        gists_data = response.json()
         
-        # Map to clean response
         mapped_gists = []
         for gist in gists_data:
             mapped_gists.append(GistResponse(
@@ -143,7 +117,6 @@ async def fetch_gists_from_github(username: str, page: int, per_page: int) -> tu
 
 @app.get("/")
 async def root():
-    """API information"""
     return {
         "message": "GitHub Gist API",
         "version": "2.0.0",
@@ -151,17 +124,11 @@ async def root():
             "/{username}": "Get user's public gists",
             "/health": "Health check",
             "/cache/clear": "Clear cache"
-        },
-        "examples": {
-            "octocat": "/octocat",
-            "pagination": "/octocat?page=1&per_page=5",
-            "docs": "/docs"
         }
     }
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -171,43 +138,28 @@ async def health_check():
 
 @app.get("/cache/clear")
 async def clear_cache():
-    """Clear the cache"""
     cache.clear()
-    return {"message": "Cache cleared successfully", "timestamp": datetime.now().isoformat()}
+    return {"message": "Cache cleared successfully"}
 
 @app.get("/{username}")
 async def get_user_gists(
-    username: str = Path(..., description="GitHub username"),
-    page: int = Query(1, ge=1, description="Page number"),
-    per_page: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="Items per page"),
-    use_cache: bool = Query(True, description="Use cached response")
-) -> JSONResponse:
-    """
-    Get all public gists for a GitHub user
-    """
-    
-    # Validate username
+    username: str = Path(...),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    use_cache: bool = Query(True)
+):
     if not validate_github_username(username):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid GitHub username format: '{username}'. "
-                   f"Usernames can only contain alphanumeric characters and hyphens."
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid GitHub username format: '{username}'")
     
-    # Check cache
     cache_key = f"{username}:{page}:{per_page}"
     if use_cache:
         cached_data = cache.get(cache_key)
         if cached_data:
-            logger.info(f"Returning cached data for {username}")
             return JSONResponse(content=cached_data)
     
-    # Fetch from GitHub
     try:
-        logger.info(f"Fetching gists for {username} (page={page}, per_page={per_page})")
         gists, pagination, rate_limits = await fetch_gists_from_github(username, page, per_page)
         
-        # Prepare response
         response_data = {
             "success": True,
             "username": username,
@@ -219,17 +171,15 @@ async def get_user_gists(
             "timestamp": datetime.now().isoformat()
         }
         
-        # Cache the response
         if use_cache:
             cache.set(cache_key, response_data)
         
         return JSONResponse(content=response_data)
         
     except httpx.TimeoutException:
-        logger.error(f"Timeout fetching gists for {username}")
         raise HTTPException(status_code=504, detail="GitHub API request timeout")
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
