@@ -122,7 +122,7 @@ uvicorn app:app --reload --port 8080  or python -m uvicorn app:app --reload --po
 #9 stop the Server
    You have to stop the server so you can run the docker or use the docker on a different port
 # Find process using port 8080
-sudo lsof -i :8080
+sudo lsof -i :8080 or netstat -ano | grep 8080 (windows)
 
 # Kill the process
 sudo kill -9 <PID>
