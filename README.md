@@ -60,22 +60,59 @@ App1
 git clone <repository-url>
 cd github-gist-api
 
+### Make sure you have Python 3 Installed
 # 2. Create virtual environment
-python3 -m venv venv
-source venv/bin/activate 
+python -m venv venv or py -3.14 -m venv venv
+source venv/bin/activate or source venv/Scripts/activate (for windows)
 
 # 3. Upgrade pip
-pip install --upgrade pip
+pip install --upgrade pip  or python -m pip install --upgrade pip setuptools wheel (for windows)
+
 
 # 4. Install dependencies
 pip install -r requirements.txt
+#Should you run into Issues Install manually
+pip install fastapi uvicorn
+pip install httpx
 
 # 5. Set up environment variables (optional)
 export GITHUB_TOKEN=your_github_token_here  # Optional: for higher rate limits
 export CACHE_TTL_SECONDS=300  # Optional: cache duration in seconds
 export DEFAULT_PAGE_SIZE=30  # Optional: default items per page
 
-# 6. Run the server
+# 6. run test_app.py to test the app.py
+pip install pytest
+pytest test_app.py -v
+##Expected Output
+$ pytest test_app.py -v
+============================================================================================== test session starts ==============================================================================================
+platform win32 -- Python 3.14.5, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\Kagiso\Downloads\App1-main\App1-main\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Kagiso\Downloads\App1-main\App1-main
+plugins: anyio-4.13.0
+collected 15 items
+
+test_app.py::TestHealthCheck::test_health_endpoint PASSED                                                                                                                                                  [  6%]
+test_app.py::TestGistAPI::test_successful_gist_fetch PASSED                                                                                                                                                [ 13%]
+test_app.py::TestGistAPI::test_user_not_found PASSED                                                                                                                                                       [ 20%]
+test_app.py::TestGistAPI::test_rate_limiting_error PASSED                                                                                                                                                  [ 26%]
+test_app.py::TestGistAPI::test_github_server_error PASSED                                                                                                                                                  [ 33%]
+test_app.py::TestGistAPI::test_timeout_handling PASSED                                                                                                                                                     [ 40%]
+test_app.py::TestGistAPI::test_pagination_parameters PASSED                                                                                                                                                [ 46%]
+test_app.py::TestGistAPI::test_caching_mechanism PASSED                                                                                                                                                    [ 53%]
+test_app.py::TestGistAPI::test_invalid_username_format PASSED                                                                                                                                              [ 60%]
+test_app.py::TestGistAPI::test_real_octocat_gists PASSED                                                                                                                                                   [ 66%]
+test_app.py::TestCacheManagement::test_clear_cache PASSED                                                                                                                                                  [ 73%]
+test_app.py::TestCacheManagement::test_cache_size_tracking PASSED                                                                                                                                          [ 80%]
+test_app.py::TestRootEndpoint::test_root_endpoint PASSED                                                                                                                                                   [ 86%]
+test_app.py::TestResponseStructure::test_response_contains_required_fields PASSED                                                                                                                          [ 93%]
+test_app.py::TestSecurityHeaders::test_method_not_allowed PASSED                                                                                                                                           [100%]
+
+============================================================================================== 15 passed in 1.49s ===============================================================================================
+(venv)
+
+
+# 7. Run the server
 uvicorn app:app --reload --port 8080  or python -m uvicorn app:app --reload --port 8080
 
 # 7. Run requests.http for testing
