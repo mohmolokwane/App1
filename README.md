@@ -159,9 +159,6 @@ docker exec gist-api curl -s http://localhost:8080/octocat | python -m json.tool
 # Check container resource usage
 docker stats gist-api --no-stream
 
-# Run tests inside container
-docker exec gist-api pytest test_app.py -v
-
 # 11. # Stop container
 docker stop gist-api
 
