@@ -66,22 +66,22 @@ cd github-gist-api
 python -m venv venv or py -3.14 -m venv venv
 source venv/bin/activate or source venv/Scripts/activate (for windows)
 
-# 3. Upgrade pip
+## 3. Upgrade pip
 pip install --upgrade pip  or python -m pip install --upgrade pip setuptools wheel (for windows)
 
 
-# 4. Install dependencies
+## 4. Install dependencies
 pip install -r requirements.txt
 #Should you run into Issues Install manually
 pip install fastapi uvicorn
 pip install httpx
 
-# 5. Set up environment variables (optional)
+## 5. Set up environment variables (optional)
 export GITHUB_TOKEN=your_github_token_here  # Optional: for higher rate limits
 export CACHE_TTL_SECONDS=300  # Optional: cache duration in seconds
 export DEFAULT_PAGE_SIZE=30  # Optional: default items per page
 
-# 6. Running Tests
+## 6. Running Tests
 run test_app.py to test the app.py
 pip install pytest
 pytest test_app.py -v
@@ -114,7 +114,7 @@ test_app.py::TestSecurityHeaders::test_method_not_allowed PASSED                
 (venv)
 
 
-# 7. Run the server
+## 7. Run the server
 uvicorn app:app --reload --port 8080  or python -m uvicorn app:app --reload --port 8080
 
 # 8. Manual Testing
@@ -122,7 +122,7 @@ Run requests.http for testing
 Open another terminal and run the requests saved in requests.http file 
 
 
-# 9. Stop the Server
+## 9. Stop the Server
    You have to stop the server so you can run the docker or use the docker on a different port
 # Find process using port 8080
 sudo lsof -i :8080 or netstat -ano | grep 8080 (windows)
@@ -134,7 +134,7 @@ sudo kill -9 <PID>
 docker run -d -p 8081:8080 --name gist-api github-gist-api
 
 
-# 10. Build the Docker image
+## 10. Build the Docker image
 docker build -t github-gist-api .
 
 # List images
@@ -152,7 +152,7 @@ docker logs gist-api
 # Follow logs in real-time
 docker logs -f gist-api
 
-# 11. Testing Docker Container
+## 11. Testing Docker Container
 # Test health endpoint
 docker exec gist-api curl -s http://localhost:8080/health
 
@@ -162,7 +162,7 @@ docker exec gist-api curl -s http://localhost:8080/octocat | python -m json.tool
 # Check container resource usage
 docker stats gist-api --no-stream
 
-# 12. # Stop container
+## 12. # Stop container
 docker stop gist-api
 
 # Remove container
