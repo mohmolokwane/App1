@@ -5,7 +5,7 @@ NB if you gonna test using the browser just copy the links
 
 crl http://localhost:8080/docs
 
-curl http://localhost:8080/
+`   `
 
 # Health check
 curl http://localhost:8080/health
