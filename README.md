@@ -8,14 +8,15 @@ REST API that fetches public gists from GitHub users with comprehensive error ha
 2. [Prerequisites](#prerequisites)
 3. [Project Structure](#project-structure)
 4. [Installation](#installation)
-5. [API Endpoints](#api-endpoints)
+5. [Set up environment variables](#Set-up-environment-variables)
 6. [Running Tests](#running-tests)
-7. [Docker Deployment](#docker-deployment)
+7. [Run the server](#Run-the-server)
 8. [Manual Testing](#manual-testing)
-9. [Environment Variables](#environment-variables)
-10. [Performance Benchmarks](#performance-benchmarks)
-11. [Security Features](#security-features)
-12. [Quick Reference](#quick-reference)
+9. [Stop the Server](#Stop-the-Server)
+10. [Build the Docker Image](#Build-the-Docker-image)
+11. [Testing Docker Container](#Testing-Docker-Container)
+12. [Stop container](#Stop-container)
+    
 
 
 ## Features
@@ -80,7 +81,8 @@ export GITHUB_TOKEN=your_github_token_here  # Optional: for higher rate limits
 export CACHE_TTL_SECONDS=300  # Optional: cache duration in seconds
 export DEFAULT_PAGE_SIZE=30  # Optional: default items per page
 
-# 6. run test_app.py to test the app.py
+# 6. Running Tests
+run test_app.py to test the app.py
 pip install pytest
 pytest test_app.py -v
 ##Expected Output
@@ -115,11 +117,12 @@ test_app.py::TestSecurityHeaders::test_method_not_allowed PASSED                
 # 7. Run the server
 uvicorn app:app --reload --port 8080  or python -m uvicorn app:app --reload --port 8080
 
-# 7. Run requests.http for testing
-- Open another terminal and run the requests saved in requests.http file 
+# 8. Manual Testing
+Run requests.http for testing
+Open another terminal and run the requests saved in requests.http file 
 
 
-#9 stop the Server
+# 9. Stop the Server
    You have to stop the server so you can run the docker or use the docker on a different port
 # Find process using port 8080
 sudo lsof -i :8080 or netstat -ano | grep 8080 (windows)
@@ -131,7 +134,7 @@ sudo kill -9 <PID>
 docker run -d -p 8081:8080 --name gist-api github-gist-api
 
 
-# Build the image
+# 10. Build the Docker image
 docker build -t github-gist-api .
 
 # List images
@@ -149,7 +152,7 @@ docker logs gist-api
 # Follow logs in real-time
 docker logs -f gist-api
 
-# 10. Testing Docker Container
+# 11. Testing Docker Container
 # Test health endpoint
 docker exec gist-api curl -s http://localhost:8080/health
 
@@ -159,7 +162,7 @@ docker exec gist-api curl -s http://localhost:8080/octocat | python -m json.tool
 # Check container resource usage
 docker stats gist-api --no-stream
 
-# 11. # Stop container
+# 12. # Stop container
 docker stop gist-api
 
 # Remove container
